@@ -11,7 +11,6 @@ import com.dist.datasync.config.repository.DataSourceConfigRepository;
 import com.dist.datasync.config.repository.FieldConfigRepository;
 import com.dist.datasync.config.repository.SequenceConfigRepository;
 import com.dist.datasync.config.repository.TableConfigRepository;
-import javafx.beans.property.adapter.ReadOnlyJavaBeanBooleanProperty;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
