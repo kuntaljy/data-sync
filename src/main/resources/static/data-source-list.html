@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html>
+  
+  <head>
+    <meta charset="UTF-8">
+    <title>数据源配置</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="./css/font.css">
+    <link rel="stylesheet" href="./css/xadmin.css">
+    <script type="text/javascript" src="./js/jquery-3.2.1/jquery.min.js"></script>
+    <script type="text/javascript" src="./lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="./js/xadmin.js"></script>
+    <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
+    <!--[if lt IE 9]>
+      <script src="https://cdn.staticfile.org/html5shiv/r29/html5.min.js"></script>
+      <script src="https://cdn.staticfile.org/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  
+  <body class="layui-anim layui-anim-up">
+    <div class="x-body">
+      <div class="layui-row">
+        <button class="layui-btn" onclick="x_admin_show('添加数据源','./data-source-save.html',600,420,false,refresh)"><i class="layui-icon"></i>添加</button>
+        <button class="layui-btn" onclick="refresh()"><i class="layui-icon">&#xe615;</i>刷新</button>
+      </div>
+      <table id="dataSourceTable" lay-filter="table"></table>
+    </div>
+    <!--表格操作列的工具条-->
+    <script type="text/html" id="toolBar">
+      <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+      <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+    </script>
+
+    <script>
+
+      function refresh() {
+          location.replace(location.href);//刷新
+      }
+
+      //table模块
+      layui.use('table', function () {
+          var table = layui.table;
+
+          function render() {
+              //渲染数据
+              table.render({
+                  elem: '#dataSourceTable',
+                  url:'./dataSource/page',
+                  response: {
+                      statusName: 'status',
+                      statusCode: 'success',
+                      msgName: 'message', //状态信息的字段名称，默认：msg
+                      countName: 'totalElements', //数据总数的字段名称，默认：count
+                      dataName: 'content' //数据列表的字段名称，默认：data
+                  },
+                  cols: [[
+                      {field: 'name', title: '名称'},
+                      {field: 'driverClass', title: '驱动'},
+                      {field: 'url', title: '地址'},
+                      {field: 'userName', title: '用户'},
+                      {title: '操作', width: 150, toolbar: '#toolBar'}
+                  ]]
+              });
+          }
+          render();
+
+          //处理事件
+          table.on('tool(table)', function (obj) {
+              var data = obj.data; //获得当前行数据
+              var layEvent = obj.event; //获得 lay-event 对应的值（也可以是表头的 event 参数对应的值）
+              var tr = obj.tr; //获得当前行 tr 的DOM对象
+
+              if(layEvent === 'del'){ //删除
+                  layer.confirm('确认删除?', function(index){
+                      obj.del(); //删除对应行（tr）的DOM结构，并更新缓存
+                      layer.close(index);
+                      //向服务端发送删除指令
+                      $.ajax({
+                          type:'post',
+                          url:'./dataSource/delete/' + data.id,
+                          success: function (res) {
+                               //console.log(res);
+                              if(res.status == 'success'){
+                                  layer.msg("删除成功", {icon: 6}, {time: 3000});
+                              }else {
+                                  layer.msg("删除失败：" + res.message, {icon: 7});
+                              }
+                          }
+                      });
+                  });
+              } else if(layEvent === 'edit'){ //编辑
+                  x_admin_show("编辑数据源", "./data-source-save.html?id=" + data.id, 600, 420, false, function () {
+                      refresh();//刷新
+                  })
+              }
+          });
+      })
+
+
+    </script>
+  </body>
+</html>

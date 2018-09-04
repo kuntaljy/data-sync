@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+  
+  <head>
+    <meta charset="UTF-8">
+    <title>执行任务</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8,target-densitydpi=low-dpi" />
+    <link rel="shortcut icon" href="/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="./css/font.css">
+    <link rel="stylesheet" href="./css/xadmin.css">
+    <script type="text/javascript" src="./js/jquery-3.2.1/jquery.min.js"></script>
+      <script type="text/javascript" src="./js/global.js"></script>
+    <script type="text/javascript" src="./lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="./js/xadmin.js"></script>
+    <!-- 让IE8/9支持媒体查询，从而兼容栅格 -->
+    <!--[if lt IE 9]>
+      <script src="https://cdn.staticfile.org/html5shiv/r29/html5.min.js"></script>
+      <script src="https://cdn.staticfile.org/respond.js/1.4.2/respond.min.js"></script>
+    <![endif]-->
+  </head>
+  
+  <body>
+    <div class="x-body layui-anim layui-anim-up">
+        <form id="form" class="layui-form" lay-filter="form">
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    任务名称
+                </label>
+                <div class="layui-input-block">
+                    <input type="text" id="taskName" name="taskName" placeholder="无" class="layui-input" disabled>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    当前状态
+                </label>
+                <div class="layui-input-block">
+                    <input type="text" id="state" name="state" class="layui-input" disabled>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    执行进度
+                </label>
+                <div class="layui-input-block">
+                    <div class="layui-progress layui-progress-big" lay-showPercent="yes" style="top:10px;" lay-filter="progressBar">
+                        <div class="layui-progress-bar" lay-percent="0%"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    异常数量
+                </label>
+                <div class="layui-input-inline">
+                    <input type="text" id="exceptionCount" name="exceptionCount" class="layui-input" disabled>
+                </div>
+                <div class="layui-form-mid layui-word-aux">请查看日志文件</div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    开始时间
+                </label>
+                <div class="layui-input-block">
+                    <input type="text" id="startTime" name="startTime" placeholder="无" class="layui-input" disabled>
+                </div>
+            </div>
+            <div class="layui-form-item">
+                <label class="layui-form-label">
+                    结束时间
+                </label>
+                <div class="layui-input-block">
+                    <input type="text" id="endTime" name="endTime" placeholder="无" class="layui-input" disabled>
+                </div>
+            </div>
+            <div class="layui-form-item layui-form-text">
+                <label class="layui-form-label">说明信息</label>
+                <div class="layui-input-block">
+                    <input type="text" id="message" name="message" placeholder="无" class="layui-input" disabled>
+                </div>
+            </div>
+      </form>
+    </div>
+
+    <script>
+
+        layui.config({
+            base: './lib/layui/expand/' //插件路径
+        }).extend({
+            enhanceform: 'enhanceform'
+        });
+        layui.use(['form','layer','enhanceform','element'], function(){
+            $ = layui.jquery;
+            var form = layui.form;
+            var layer = layui.layer;
+            var enhanceForm = layui.enhanceform;
+            var element = layui.element;
+            var enhance = new enhanceForm({
+                elem: '#form' //表单选择器
+            });
+
+
+            //获取url参数id，如果id不为空则为编辑状态，获取id对应数据对象
+            var id = $.request.queryString["id"];
+
+            //引擎状态数据
+            var engineInfo;
+            function getEngienInfo(resultHandler) {
+                $.ajax({
+                    url:'./dataSync/state',
+                    success: function (res) {
+                         //console.log(res);
+                        if(res.status == 'success'){
+                            engineInfo = res.data;
+                            enhance.filling(engineInfo);
+                            var progressLabel = parseInt(engineInfo.progress*100) + '%';
+                            element.progress('progressBar', progressLabel);
+                            if(resultHandler!=null){
+                                resultHandler();
+                            }
+                            //这种情况下再渲染一遍数据，解决progress显示问题
+                            if(engineInfo.state != '执行中'){
+                                setTimeout(function () {
+                                    element.progress('progressBar', progressLabel);
+                                },500);
+                            }
+                        }else {
+                            layer.msg("读取失败：" + res.message, {icon: 7});
+                        }
+                    }
+                });
+            }
+
+            //判断是否有新的任务要执行
+            getEngienInfo(function () {
+                if (engineInfo.state === '执行中') {
+                    if(id != null && Number(id) > 0) {
+                        layer.alert("之前的同步任务正在执行中，无法开启新的同步任务，点击确定查看前序同步任务执行状态", {icon: 7});
+                    }
+                    refresh();
+                } else if(id != null && Number(id) > 0) {
+                    //执行新任务
+                    layer.msg("数据库连接中，请稍后...", {icon: 1}, {time: 2000});
+                    var index = layer.load(2, {time: 30*1000});
+                    $.ajax({
+                        type: 'post',
+                        url:'./dataSync/execute/' + id,
+                        success: function (res) {
+                            console.log(res);
+                            layer.close(index);
+                            if (res.status == 'success') {
+                                layer.msg("开始执行", {icon: 1}, {time: 2000});
+                                getEngienInfo(refresh);
+                            } else {
+                                layer.msg("读取失败：" + res.message, {icon: 7});
+                            }
+                        }
+                    });
+                }
+            });
+
+
+            //刷新进度
+            function refresh() {
+                if (engineInfo!=null && engineInfo.state === '执行中'){
+                    setTimeout(getEngienInfo(refresh), 1000);
+                }
+            }
+        });
+    </script>
+  </body>
+
+</html>
